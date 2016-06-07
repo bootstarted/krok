@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "leadfoot": "^1.6.8",
+    "selenium-standalone": "^5.1.0",
+    "bayside": "../../"
+  }
+}
