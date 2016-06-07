@@ -44,7 +44,7 @@ export const selenium = {
           chrome: {
             version: '2.21',
             arch: process.arch,
-          }
+          },
         },
         seleniumArgs: ['-port', port],
       };
@@ -90,6 +90,7 @@ export const session = {
   dispose: (session) => session.quit(),
 };
 
+/*
 export const coverage = {
   dependencies: (context) => [`session@${context}`],
   run: (session) => session.execute(() => {
@@ -104,6 +105,7 @@ export const coverageBE = {
     return Promise.resolve();
   },
 };
+*/
 
 export const server = {
   run: () => new Promise((resolve, reject) => {

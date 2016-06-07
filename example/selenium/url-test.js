@@ -4,7 +4,8 @@ export default (url) => {
   return new Promise((resolve, reject) => {
     const run = (attempt, err) => {
       if (attempt > 5) {
-        return reject(err);
+        reject(err);
+        return;
       }
       const wait = 100 * Math.pow(2, attempt);
       setTimeout(() => {

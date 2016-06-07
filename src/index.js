@@ -1,16 +1,16 @@
 import {createAction, handleActions} from 'redux-actions';
 
 const prefix = 'my-module';
-const TASK_START = `${prefix}/TASK_START`;
-const TASK_COMPLETE = `${prefix}/TASK_COMPLETE`;
-const TASK_FAIL = `${prefix}/TASK_FAIL`;
-const TASK_QUEUE_PUSH = `${prefix}/TASK_QUEUE_PUSH`;
-const TASK_QUEUE_POP = `${prefix}/TASK_QUEUE_POP`;
-const TASK_REGISTER = `${prefix}/TASK_REGISTER`;
-const TASK_UNREGISTER = `${prefix}/TASK_UNREGISTER`;
-const TASK_REF = `${prefix}/TASK_REF`;
-const TASK_UNREF = `${prefix}/TASK_UNREF`;
-const TASK_CONCURRENCY = `${prefix}/TASK_CONCURRENCY`;
+export const TASK_START = `${prefix}/TASK_START`;
+export const TASK_COMPLETE = `${prefix}/TASK_COMPLETE`;
+export const TASK_FAIL = `${prefix}/TASK_FAIL`;
+export const TASK_QUEUE_PUSH = `${prefix}/TASK_QUEUE_PUSH`;
+export const TASK_QUEUE_POP = `${prefix}/TASK_QUEUE_POP`;
+export const TASK_REGISTER = `${prefix}/TASK_REGISTER`;
+export const TASK_UNREGISTER = `${prefix}/TASK_UNREGISTER`;
+export const TASK_REF = `${prefix}/TASK_REF`;
+export const TASK_UNREF = `${prefix}/TASK_UNREF`;
+export const TASK_CONCURRENCY = `${prefix}/TASK_CONCURRENCY`;
 
 // Task has begun processing.
 const startTask = createAction(TASK_START);
@@ -142,7 +142,7 @@ export const runTask = (options, id) => (dispatch, getState) => {
   if (promises[id]) {
     return promises[id];
   }
-  const task = getTask(id);
+  const task = getTask(id, getState);
   const bucket = getBucket(task);
   const dependencies = getDependencies(task).map((id) => {
     dispatch(refTask(id));
@@ -161,16 +161,37 @@ export const runTask = (options, id) => (dispatch, getState) => {
       dispatch(queueTask({id, bucket, dependencies, resolve, reject}));
       dispatch(runQueue(options));
     });
-  }, (err) => {
-    console.log('WTF?!')
-    console.log(err.stack);
-    const error = new Error('Dependency error.');
+  }, (error) => {
     dispatch(failTask({id, error, timestamp: Date.now()}));
     dispatch(cleanup(options, [id]));
     throw error;
   });
   dispatch(registerTask({id, result}));
   return result;
+};
+
+export const createTaskRegistry = ({
+  dispose = () => Promise.resolve(),
+  selector = (state) => state,
+  task = (id) => id,
+  dependencies,
+  run,
+  bucket = (id) => id,
+}) => {
+  // Sanity check.
+  if (typeof run !== 'function') {
+    throw new TypeError();
+  } else if (typeof dependencies !== 'function') {
+    throw new TypeError();
+  }
+  return {
+    task,
+    dependencies,
+    selector,
+    bucket,
+    dispose,
+    run,
+  };
 };
 
 export const reducer = handleActions({

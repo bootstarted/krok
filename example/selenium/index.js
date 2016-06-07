@@ -1,6 +1,6 @@
 import {expect} from 'chai';
-
-import {runTask, reducer as taskReducer} from '../../src';
+import chalk from 'chalk';
+import {runTask, reducer as taskReducer, createTaskRegistry} from '../../src';
 import thunk from 'redux-thunk';
 import {createStore, combineReducers, applyMiddleware} from 'redux';
 
@@ -44,7 +44,7 @@ const index = {
   example2,
 };
 
-const options = {
+const options = createTaskRegistry({
   task: (id) => {
     const [name, context] = id.split('@', 2);
     return {
@@ -71,7 +71,7 @@ const options = {
   },
   selector: (state) => state.tasks,
   bucket: ({id}) => id,
-};
+});
 
 const run = (id) => runTask(options, id);
 
@@ -80,8 +80,6 @@ const reducer = combineReducers({
 });
 
 const store = createStore(reducer, applyMiddleware(thunk));
-
-import chalk from 'chalk';
 
 // store.dispatch(run('example1'));
 store.dispatch(run('example1'));
