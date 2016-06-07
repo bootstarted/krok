@@ -159,7 +159,7 @@ The options (and defaults) to `createTaskRegistry` are described below:
   /**
    * Clean up the result produced by a task. This is called whenever the
    * resource created by your task is no longer needed.
-   * @param {Any} task [description]
+   * @param {Any} task Task whose resource needs disposing.
    * @param {Any} value The resource created by the task.
    * @returns {Promise} The result of disposing the resource.
    */
@@ -174,9 +174,12 @@ The options (and defaults) to `createTaskRegistry` are described below:
   selector = (state) => state,
 
   /**
-   * [description]
-   * @param   {[type]} id [description]
-   * @returns {[type]}    [description]
+   * Fetch a task. Internally `bayside` only uses `id` to track tasks, but you
+   * may wish to attach additional data to a particular task. Whatever you
+   * return here will be passed as the `task` argument to the other registry
+   * functions.
+   * @param {String} id Task identifier.
+   * @returns {Any} Task representation for given identifier.
    */
   task = (id) => id,
 
