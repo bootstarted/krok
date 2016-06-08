@@ -1,0 +1,168 @@
+import {createAction} from 'redux-actions';
+import {
+  TASK_QUEUE_POP,
+  TASK_QUEUE_PUSH,
+  TASK_START,
+  TASK_COMPLETE,
+  TASK_FAIL,
+  TASK_REGISTER,
+  TASK_UNREGISTER,
+  TASK_REF,
+  TASK_UNREF,
+} from './types';
+
+// Task has begun processing.
+const startTask = createAction(TASK_START);
+
+// Task has completed processing. Result of the task is available.
+const completeTask = createAction(TASK_COMPLETE);
+
+// Task has failed. Error from the failure is available.
+const failTask = createAction(TASK_FAIL);
+
+// Task is ready to be processed. All dependencies have been completed or
+// failed.
+const queueTask = createAction(TASK_QUEUE_PUSH);
+
+// Move list of tasks from the pending queue into active processing.
+const unqueueTasks = createAction(TASK_QUEUE_POP);
+
+// Mark a task as having been requested. Includes a promise representing the
+// result of the task.
+const registerTask = createAction(TASK_REGISTER);
+
+// Mark a task's result as no longer being needed.
+const unregisterTask = createAction(TASK_UNREGISTER);
+
+// Increase the reference count on a task's result. While this is positive
+// the task result will be held alive.
+export const refTask = createAction(TASK_REF);
+
+// Decrease the reference count on a task's result. When this hits zero the
+// task's result will be disposed and the task will be unregistered.
+export const unrefTask = createAction(TASK_UNREF);
+
+const runItem = (
+  options,
+  {id, dependencies, resolve, reject}
+) => (dispatch) => {
+  const {task: getTask, run} = options;
+  const task = getTask(id);
+  const _reject = (error) => {
+    dispatch(failTask({id, task, error, timestamp: Date.now()}));
+    reject(error);
+  };
+  const _resolve = (result) => {
+    dispatch(completeTask({id, task, result, timestamp: Date.now()}));
+    resolve(result);
+  };
+  let result;
+  dispatch(startTask({id, task, timestamp: Date.now()}));
+  try {
+    result = run(task, dependencies);
+  } catch (err) {
+    _reject(err);
+    return;
+  }
+  if (typeof result.then !== 'function') {
+    _reject(new TypeError('Did not return `Promise`.'));
+  } else {
+    result.then(_resolve, _reject);
+  }
+};
+
+const cleanup = (options, tasks) => (dispatch, getState) => {
+  const {
+    task: getTask,
+    dependencies: getDependencies,
+    dispose,
+    selector,
+  } = options;
+  const {refs, promises} = selector(getState());
+
+  // Find things which need disposing.
+  const all = (tasks || Object.keys(refs)).filter((id) => !refs[id]);
+
+  // If there's nothing to do, then bail early.
+  if (all.length === 0) {
+    return Promise.resolve();
+  }
+
+  // Go through every task whose result needs disposing.
+  const result = Promise.all(all.map((id) => {
+    const task = getTask(id);
+    const done = () => {
+      // Go through all our dependencies and remove a ref for each one.
+      // The ref here is originally created in `runTask`.
+      getDependencies(task).forEach((dep) => {
+        dispatch(unrefTask(dep));
+      });
+      // Destroy the task.
+      dispatch(unregisterTask(id));
+    };
+    // Get the result from the task.
+    return promises[id].then((result) => {
+      // Dispose it.
+      return dispose(task, result);
+    }).then(
+      (result) => {
+        done();
+        return result;
+      },
+      (err) => {
+        done();
+        throw err;
+      }
+    );
+  }));
+
+  const next = () => dispatch(cleanup(options));
+
+  return result.then(next, next);
+};
+
+const runQueue = (options) => (dispatch, getState) => {
+  dispatch(unqueueTasks());
+  const {selector} = options;
+  const {processing} = selector(getState());
+  processing.forEach((task) => {
+    dispatch(runItem(options, task));
+  });
+};
+
+export const runTask = (options, id) => (dispatch, getState) => {
+  const {
+    task: getTask,
+    dependencies: getDependencies,
+    selector,
+  } = options;
+  const {promises} = selector(getState());
+  if (promises[id]) {
+    return promises[id];
+  }
+  const task = getTask(id, getState);
+  const dependencies = getDependencies(task).map((id) => {
+    dispatch(refTask(id));
+    return dispatch(runTask(options, id));
+  });
+  const result = Promise.all(dependencies).then((dependencies) => {
+    return new Promise((_resolve, _reject) => {
+      const resolve = (result) => {
+        dispatch(cleanup(options, [id]));
+        _resolve(result);
+      };
+      const reject = (error) => {
+        dispatch(cleanup(options, [id]));
+        _reject(error);
+      };
+      dispatch(queueTask({id, dependencies, resolve, reject}));
+      dispatch(runQueue(options));
+    });
+  }, (error) => {
+    dispatch(failTask({id, error, timestamp: Date.now()}));
+    dispatch(cleanup(options, [id]));
+    throw error;
+  });
+  dispatch(registerTask({id, result}));
+  return result;
+};

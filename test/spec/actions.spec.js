@@ -1,7 +1,8 @@
 import {expect} from 'chai';
-import {runTask, reducer, createTaskRegistry} from '../../src';
+import {runTask} from '../../src/actions';
+import reducer from '../../src/reducer';
+import {createTaskRegistry} from '../../src/registry';
 import thunk from 'redux-thunk';
-import {createAction} from 'redux-actions';
 import {
   createStore as createBaseStore,
   applyMiddleware,
@@ -11,29 +12,6 @@ const createStore = (reducer, state) =>
   createBaseStore(reducer, state, applyMiddleware(thunk));
 
 describe('bayside', () => {
-  describe('.createTaskRegistry', () => {
-    it('should fail with an invalid `run` option', () => {
-      expect(() => createTaskRegistry({
-        run: 5,
-        dependencies: () => {},
-      })).to.throw(TypeError);
-    });
-    it('should fail with an invalid `dependencies` option', () => {
-      expect(() => createTaskRegistry({
-        dependencies: 5,
-        run: () => {},
-      })).to.throw(TypeError);
-    });
-  });
-
-  describe('.reducer', () => {
-    it('should accept unknown actions', () => {
-      const state = {};
-      const action = createAction('FOO')();
-      expect(reducer(state, action)).to.equal(state);
-    });
-  });
-
   describe('.runTask', () => {
     it('should return results from tasks', () => {
       const store = createStore(reducer);
