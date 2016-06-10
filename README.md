@@ -32,7 +32,7 @@ Some quick nomenclature to keep things consistent:
 
 **Dependencies**: Given a particular task, a list of tasks that must successfully complete before the original task can be run.
 
-## Installation
+## Usage
 
 Install `bayside` and its dependencies:
 
@@ -40,20 +40,18 @@ Install `bayside` and its dependencies:
 npm install --save bayside redux redux-thunk
 ```
 
-## Usage
-
 ### Simple
 
 If you have a fixed set of tasks to run you can simply encode all of them directly.
 
 ```javascript
-import {runTask, reducer, createRegistry} from 'bayside';
+import {runTask, reducer, createTaskRegistry} from 'bayside';
 import thunk from 'redux-thunk';
 import {createStore, applyMiddleware} from 'redux';
 
 const store = createStore(reducer, applyMiddleware(thunk));
 
-const registry = createRegistry({
+const registry = createTaskRegistry({
   // Called whenever a task has to be run. Return a promise representing the
   // result of running the task.
   run: (id, dependencies) => {
@@ -101,7 +99,7 @@ result.then((b) => console.log('Task result:', b));
 Sometimes you will want to do things with state.
 
 ```javascript
-import {runTask, reducer as taskReducer, createRegistry} from 'bayside';
+import {runTask, reducer as taskReducer, createTaskRegistry} from 'bayside';
 import thunk from 'redux-thunk';
 import {createStore, combineReducers, applyMiddleware} from 'redux';
 
@@ -121,7 +119,7 @@ const selector = (state) => state.tasks;
 
 const store = createStore(reducer, applyMiddleware(thunk));
 
-const registry = createRegistry({
+const registry = createTaskRegistry({
   selector,
   run: (id, dependencies) => {
     switch (id) {
@@ -157,7 +155,7 @@ Sometimes the result of running a task is just a simple value, like a plain Java
 Internally, `bayside` handles all the necessary reference counting ensuring that both: as long as the result of a task is needed, its resource will be kept alive; and when the result is no longer needed, its resource will be disposed.
 
 ```javascript
-const registry = createRegistry({
+const registry = createTaskRegistry({
   dispose: (id, result) => {
     switch(id) {
     case 'a':
@@ -227,7 +225,7 @@ Sometimes you may wish to limit how many tasks can run in parallel.
 An extremely simple mechanism:
 
 ```javascript
-const registry = createRegistry({
+const registry = createTaskRegistry({
   // TODO: Finish this.
   schedule: (next, active) => {
     return next.slice(0, Math.max(0, 3 - active.length));
@@ -238,10 +236,32 @@ const registry = createRegistry({
 You can do more complex scheduling using buckets:
 
 ```javascript
-const registry = createRegistry({
+const registry = createTaskRegistry({
   // TODO: Finish this.
   schedule: (next) => {
     return next.slice(0, 3);
+  },
+});
+```
+
+### Task Priority
+
+Sometimes you may wish to schedule some tasks sooner than others.
+
+```javascript
+import flow from 'lodash/fp/flow';
+import sortBy from 'lodash/fp/sortBy';
+import take from 'lodash/fp/take';
+
+const xxx = flow(
+  sortBy('priority'),
+  take(5)
+);
+
+const registry = createTaskRegistry({
+  // TODO: Finish this.
+  schedule: (next) => {
+    return xxx(next);
   },
 });
 ```
@@ -251,7 +271,7 @@ const registry = createRegistry({
 Sometimes you may wish to control how many resources of one type remain active – e.g. only allow 3 concurrent database sessions. You can use a similar mechanism to concurrency control to achieve this.
 
 ```javascript
-const registry = createRegistry({
+const registry = createTaskRegistry({
   // TODO: Finish this.
   schedule: (next) => {
     countBy('type', refs);
@@ -266,7 +286,7 @@ If you're not careful when customizing the scheduler or you create circular depe
 This is a trivial dependency deadlock that `bayside` will detect:
 
 ```javascript
-const registry = createRegistry({
+const registry = createTaskRegistry({
   run: (id, dependencies) => {
     switch (id) {
     case 'a':
@@ -289,7 +309,7 @@ const registry = createRegistry({
 This is a trivial scheduler deadlock that `bayside` will detect:
 
 ```javascript
-const registry = createRegistry({
+const registry = createTaskRegistry({
   schedule: () => []
 });
 ```
@@ -307,7 +327,7 @@ const store = createStore(reducer, applyMiddleware(thunk, logger));
 
 ### Reporting
 
-Reporting is a little bit trickier with `bayside`. The only official mechanism to detect changes is by using [store subscription].
+Reporting is a little bit trickier with `bayside`. The only official mechanism to detect changes is by using [redux's store subscription].
 
 ```javascript
 let state = null;
@@ -355,21 +375,26 @@ The options (and defaults) to `createTaskRegistry` are described below:
   task = (id) => id,
 
   /**
-   * Fetch the list of dependencies for a task.
-   * @param {Any} task The current task.
+   * Fetch the list of dependencies for a given task.
+   * @param {Any} task The current task whose dependencies are needed.
    * @returns {Array} List of dependencies.
    */
   dependencies = (task) => [],
 
   /**
-   * Execute the task.
+   * Execute a given task.
    * @param {Any} task The current task.
    * @returns {Promise} The result of executing the task.
    */
   run = (task) => Promise.resolve(),
 
   /**
-   * Schedule the next unit of work to be run.
+   * Schedule the next unit of work to be run. The only tasks given are tasks
+   * that are actually able to be scheduled (i.e. all there dependencies have
+   * been met).
+   * Note that you can create deadlocks here when there are no tasks currently
+   * running, there are tasks pending _and_ you schedule no more work. All
+   * pending tasks will be failed in this case.
    * @param {Array} tasks List of tasks that are available for running.
    * @returns {Array} List of tasks to be run.
    */

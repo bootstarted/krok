@@ -116,17 +116,44 @@ const cleanup = (options, tasks) => (dispatch, getState) => {
     );
   }));
 
+  // Keep cleaning up until there's nothing left to do.
   const next = () => dispatch(cleanup(options));
 
   return result.then(next, next);
 };
 
+const schedule = (options) => (dispatch, getState) => {
+  const {selector, schedule} = options;
+  const {processing, queue} = selector(getState());
+  const tasks = schedule(queue);
+
+  // TODO: What should happen if the scheduler returns an invalid task?
+  // Ignore it or bail on error or nothing?
+  // if (tasks.some((id) => !results[id])) {};
+
+  // Detect deadlock conditions. If there are no tasks to be scheduled AND
+  // there are no tasks currently processing AND there is work left to be done
+  // then we've hit an impasse. The rationale is that if there are no tasks
+  // currently processing then the scheduler will not be invoked again and thus
+  // everything will simply stop. In this case the queue is simply fushed and
+  // all active items are rejected.
+  if (tasks.length === 0 && processing.length === 0 && queue.length > 0) {
+    dispatch(unqueueTasks(queue));
+    const error = new Error('Deadlock.');
+    queue.forEach((id) => {
+      dispatch(failTask({id, error, timestamp: Date.now()}));
+    });
+  } else {
+    dispatch(unqueueTasks(tasks));
+  }
+};
+
 const runQueue = (options) => (dispatch, getState) => {
-  dispatch(unqueueTasks());
+  dispatch(schedule(options));
   const {selector} = options;
-  const {processing} = selector(getState());
-  processing.forEach((task) => {
-    dispatch(runItem(options, task));
+  const {processing, results} = selector(getState());
+  processing.forEach((id) => {
+    dispatch(runItem(options, results[id].queue));
   });
 };
 
@@ -155,7 +182,10 @@ export const runTask = (options, id) => (dispatch, getState) => {
         dispatch(cleanup(options, [id]));
         _reject(error);
       };
-      dispatch(queueTask({id, dependencies, resolve, reject}));
+      dispatch(queueTask({
+        entry: {id, dependencies, resolve, reject},
+        timestamp: Date.now(),
+      }));
       dispatch(runQueue(options));
     });
   }, (error) => {

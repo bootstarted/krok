@@ -12,25 +12,37 @@ import {
 import {handleActions} from 'redux-actions';
 
 export default handleActions({
-  [TASK_QUEUE_POP]: (state) => {
+  [TASK_QUEUE_POP]: (state, {payload: tasks}) => {
     const {queue, processing} = state;
+    const todo = processing.slice();
+    const used = {};
 
-    const nextQueue = [];
-    const nextProcessing = [...processing, ...queue];
+    tasks.forEach((id) => {
+      todo.push(id);
+      used[id] = true;
+    });
 
     return {
       ...state,
-      processing: nextProcessing,
-      queue: nextQueue,
+      processing: todo,
+      queue: queue.filter((id) => !used[id]),
     };
   },
-  [TASK_QUEUE_PUSH]: (state, {payload: entry}) => {
+  [TASK_QUEUE_PUSH]: (state, {payload: {entry, timestamp}}) => {
     return {
       ...state,
       queue: [
         ...state.queue,
-        entry,
+        entry.id,
       ],
+      results: {
+        ...state.results,
+        [entry.id]: {
+          status: 'ENQUEUED',
+          queue: entry,
+          queued: timestamp,
+        },
+      },
     };
   },
   [TASK_START]: (state, {payload: {id, timestamp}}) => {
@@ -39,6 +51,7 @@ export default handleActions({
       results: {
         ...state.results,
         [id]: {
+          ...state.results[id],
           status: 'PENDING',
           start: timestamp,
         },
@@ -46,7 +59,7 @@ export default handleActions({
     };
   },
   [TASK_COMPLETE]: (state, {payload: {id, result, bucket, timestamp}}) => {
-    const processing = state.processing.filter(({id: target}) => id !== target);
+    const processing = state.processing.filter((target) => id !== target);
     return {
       ...state,
       processing,
@@ -57,30 +70,13 @@ export default handleActions({
           status: 'COMPLETE',
           result,
           end: timestamp,
-          duration: timestamp - state.results[id].start,
           bucket,
         },
       },
     };
   },
   [TASK_FAIL]: (state, {payload: {id, error, bucket, timestamp}}) => {
-    const processing = state.processing.filter(({id: target}) => id !== target);
-    if (!state.results[id]) {
-      return {
-        ...state,
-        processing,
-        results: {
-          ...state.results,
-          [id]: {
-            status: 'ERROR',
-            timestamp,
-            duration: 0,
-            error,
-            bucket,
-          },
-        },
-      };
-    }
+    const processing = state.processing.filter((target) => id !== target);
     return {
       ...state,
       processing,
@@ -91,7 +87,6 @@ export default handleActions({
           status: 'ERROR',
           error,
           end: timestamp,
-          duration: timestamp - state.results[id].start,
           bucket,
         },
       },

@@ -4,7 +4,7 @@ export const createTaskRegistry = ({
   task = (id) => id,
   dependencies,
   run,
-  schedule = () => [],
+  schedule = (queue) => queue,
 }) => {
   // Sanity check.
   if (typeof run !== 'function') {

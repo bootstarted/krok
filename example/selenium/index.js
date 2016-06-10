@@ -111,6 +111,7 @@ const formatError = (error) => {
 };
 
 process.on('exit', () => {
+  console.log(store.getState());
   console.log('## ==== Results ==== ##');
   const {results} = options.selector(store.getState());
   Object.keys(results).forEach((key) => {
