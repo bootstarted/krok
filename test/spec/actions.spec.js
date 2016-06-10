@@ -60,5 +60,33 @@ describe('bayside', () => {
         expect(result).to.equal(8);
       });
     });
+
+    it('should fail if the task is unschedulable', () => {
+      const store = createStore(reducer);
+      const config = createTaskRegistry({
+        schedule: () => [],
+        run: (id) => {
+          switch (id) {
+          case 'a':
+            return Promise.resolve(3);
+          default:
+            return Promise.reject('No such task.');
+          }
+        },
+        dependencies: (id) => {
+          switch (id) {
+          case 'a':
+            return [];
+          default:
+            throw new TypeError();
+          }
+        },
+      });
+
+      // TODO: Fix checking the positive case.
+      return store.dispatch(runTask(config, 'a')).catch((err) => {
+        expect(err).to.be.an.instanceof(Error);
+      });
+    });
   });
 });

@@ -272,7 +272,7 @@ Sometimes you may wish to control how many resources of one type remain active â
 
 ```javascript
 const registry = createTaskRegistry({
-  // TODO: Finish this.
+  // TODO: Finish this. Use `refs` to count active resources.
   schedule: (next) => {
     countBy('type', refs);
   }

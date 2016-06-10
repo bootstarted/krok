@@ -124,7 +124,7 @@ const cleanup = (options, tasks) => (dispatch, getState) => {
 
 const schedule = (options) => (dispatch, getState) => {
   const {selector, schedule} = options;
-  const {processing, queue} = selector(getState());
+  const {processing, queue, results} = selector(getState());
   const tasks = schedule(queue);
 
   // TODO: What should happen if the scheduler returns an invalid task?
@@ -141,6 +141,7 @@ const schedule = (options) => (dispatch, getState) => {
     dispatch(unqueueTasks(queue));
     const error = new Error('Deadlock.');
     queue.forEach((id) => {
+      results[id].queue.reject(error);
       dispatch(failTask({id, error, timestamp: Date.now()}));
     });
   } else {
