@@ -42,12 +42,20 @@ export const refTask = createAction(TASK_REF);
 // task's result will be disposed and the task will be unregistered.
 export const unrefTask = createAction(TASK_UNREF);
 
+// Allow registry functions to gain `dispatch` and `getState`.
+const thunkable = (res, dispatch, getState) => {
+  if (typeof res === 'function') {
+    return res(dispatch, getState);
+  }
+  return res;
+};
+
 const runItem = (
   options,
   {id, dependencies, resolve, reject}
-) => (dispatch) => {
+) => (dispatch, getState) => {
   const {task: getTask, run} = options;
-  const task = getTask(id);
+  const task = thunkable(getTask(id), dispatch, getState);
   const _reject = (error) => {
     dispatch(failTask({id, task, error, timestamp: Date.now()}));
     reject(error);
@@ -59,7 +67,7 @@ const runItem = (
   let result;
   dispatch(startTask({id, task, timestamp: Date.now()}));
   try {
-    result = run(task, dependencies);
+    result = thunkable(run(task, dependencies), dispatch, getState);
   } catch (err) {
     _reject(err);
     return;
@@ -103,7 +111,7 @@ const cleanup = (options, tasks) => (dispatch, getState) => {
     // Get the result from the task.
     return promises[id].then((result) => {
       // Dispose it.
-      return dispose(task, result);
+      return thunkable(dispose(task, result), dispatch, getState);
     }).then(
       (result) => {
         done();
@@ -125,7 +133,7 @@ const cleanup = (options, tasks) => (dispatch, getState) => {
 const schedule = (options) => (dispatch, getState) => {
   const {selector, schedule} = options;
   const {processing, queue, results} = selector(getState());
-  const tasks = schedule(queue);
+  const tasks = thunkable(schedule(queue), dispatch, getState);
 
   // TODO: What should happen if the scheduler returns an invalid task?
   // Ignore it or bail on error or nothing?
@@ -168,11 +176,12 @@ export const runTask = (options, id) => (dispatch, getState) => {
   if (promises[id]) {
     return promises[id];
   }
-  const task = getTask(id, getState);
-  const dependencies = getDependencies(task).map((id) => {
-    dispatch(refTask(id));
-    return dispatch(runTask(options, id));
-  });
+  const task = thunkable(getTask(id, getState), dispatch, getState);
+  const dependencies = thunkable(getDependencies(task), dispatch, getState)
+    .map((id) => {
+      dispatch(refTask(id));
+      return dispatch(runTask(options, id));
+    });
   const result = Promise.all(dependencies).then((dependencies) => {
     return new Promise((_resolve, _reject) => {
       const resolve = (result) => {
