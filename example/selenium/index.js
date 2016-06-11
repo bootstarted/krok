@@ -70,7 +70,6 @@ const options = createTaskRegistry({
     return [];
   },
   selector: (state) => state.tasks,
-  bucket: ({id}) => id,
 });
 
 const run = (id) => runTask(options, id);
@@ -115,11 +114,11 @@ process.on('exit', () => {
   console.log('## ==== Results ==== ##');
   const {results} = options.selector(store.getState());
   Object.keys(results).forEach((key) => {
-    const {status, duration, result, error} = results[key];
+    const {status, start, end, result, error} = results[key];
     const [id] = key.split('@', 2);
     const {format = (i) => i} = index[id];
     const output = status === 'COMPLETE' ?
       formatResult(format(result)) : formatError(error);
-    console.log(icon(status), timing(duration), key, output);
+    console.log(icon(status), timing(end - start), key, output);
   });
 });
