@@ -13,8 +13,8 @@ import {handleActions} from 'redux-actions';
 
 export default handleActions({
   [TASK_QUEUE_POP]: (state, {payload: tasks}) => {
-    const {queue, processing} = state;
-    const todo = processing.slice();
+    const {queue, todo: oldTodo} = state;
+    const todo = oldTodo.slice();
     const used = {};
 
     tasks.forEach((id) => {
@@ -24,7 +24,7 @@ export default handleActions({
 
     return {
       ...state,
-      processing: todo,
+      todo,
       queue: queue.filter((id) => !used[id]),
     };
   },
@@ -48,6 +48,7 @@ export default handleActions({
   [TASK_START]: (state, {payload: {id, timestamp}}) => {
     return {
       ...state,
+      todo: state.todo.filter((target) => target !== id),
       results: {
         ...state.results,
         [id]: {
@@ -59,10 +60,9 @@ export default handleActions({
     };
   },
   [TASK_COMPLETE]: (state, {payload: {id, result, bucket, timestamp}}) => {
-    const processing = state.processing.filter((target) => id !== target);
     return {
       ...state,
-      processing,
+      todo: state.todo.filter((target) => target !== id),
       results: {
         ...state.results,
         [id]: {
@@ -76,10 +76,9 @@ export default handleActions({
     };
   },
   [TASK_FAIL]: (state, {payload: {id, error, bucket, timestamp}}) => {
-    const processing = state.processing.filter((target) => id !== target);
     return {
       ...state,
-      processing,
+      todo: state.todo.filter((target) => target !== id),
       results: {
         ...state.results,
         [id]: {
@@ -135,5 +134,5 @@ export default handleActions({
   refs: {},
   results: {},
   queue: [],
-  processing: [],
+  todo: [],
 });

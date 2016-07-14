@@ -132,7 +132,7 @@ const cleanup = (options, tasks) => (dispatch, getState) => {
 
 const schedule = (options) => (dispatch, getState) => {
   const {selector, schedule} = options;
-  const {processing, queue, results} = selector(getState());
+  const {todo, queue, results} = selector(getState());
   const tasks = thunkable(schedule(queue), dispatch, getState);
 
   // TODO: What should happen if the scheduler returns an invalid task?
@@ -145,7 +145,7 @@ const schedule = (options) => (dispatch, getState) => {
   // currently processing then the scheduler will not be invoked again and thus
   // everything will simply stop. In this case the queue is simply fushed and
   // all active items are rejected.
-  if (tasks.length === 0 && processing.length === 0 && queue.length > 0) {
+  if (tasks.length === 0 && todo.length === 0 && queue.length > 0) {
     dispatch(unqueueTasks(queue));
     const error = new Error('Deadlock.');
     queue.forEach((id) => {
@@ -160,8 +160,8 @@ const schedule = (options) => (dispatch, getState) => {
 const runQueue = (options) => (dispatch, getState) => {
   dispatch(schedule(options));
   const {selector} = options;
-  const {processing, results} = selector(getState());
-  processing.forEach((id) => {
+  const {todo, results} = selector(getState());
+  todo.forEach((id) => {
     dispatch(runItem(options, results[id].queue));
   });
 };
