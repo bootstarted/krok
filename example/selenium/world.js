@@ -78,7 +78,7 @@ export const selenium = {
 
 export const leadfoot = {
   dependencies: ['selenium'],
-  run: ({port}) => check(`http://localhost:${port}`).then(
+  run: (task, {port}) => check(`http://localhost:${port}`).then(
     () => Promise.resolve(new Server(`http://localhost:${port}/wd/hub`))
   ),
   format: (server) => server.url,
@@ -87,7 +87,7 @@ export const leadfoot = {
 export const session = {
   dependencies: ['leadfoot'],
   format: (session) => session.sessionId,
-  run: (server) => {
+  run: (task, server) => {
     return server.createSession({browserName: 'chrome'}, {});
   },
   dispose: (session) => {

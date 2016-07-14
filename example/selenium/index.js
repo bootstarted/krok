@@ -14,7 +14,7 @@ import {
 
 const example1 = {
   dependencies: ({id}) => [`session@${id}`],
-  run: (session) => {
+  run: (task, session) => {
     return session.get('http:/www.apple.com').then(() => {
       return session.getPageTitle().then((title) => {
         expect(title).to.contain('Apple');
@@ -25,7 +25,7 @@ const example1 = {
 
 const example2 = {
   dependencies: ({id}) => [`session@${id}`],
-  run: (session) => {
+  run: (task, session) => {
     return session.get('http://www.google.com').then(() => {
       return session.getPageTitle().then((title) => {
         expect(title).to.contain('Google');
@@ -54,8 +54,8 @@ const options = createTaskRegistry({
       context,
     };
   },
-  run: ({run}, dependencies) => {
-    return run(...dependencies);
+  run: (task, dependencies) => {
+    return task.run(task, ...dependencies);
   },
   dispose: ({dispose}, result) => {
     return dispose ? dispose(result) : Promise.resolve();
@@ -80,13 +80,6 @@ const reducer = combineReducers({
 
 const store = createStore(reducer, applyMiddleware(thunk));
 
-const formatError = (error) => {
-  if (error.stack) {
-    return `${error}\n${error.stack}`;
-  }
-  return `${error}`;
-};
-
 const logs = {};
 log.heading = 'bayside';
 store.subscribe(() => {
@@ -105,7 +98,7 @@ store.subscribe(() => {
       }
       logs[id].finish();
     } else if (task.status === 'ERROR' && logs[id].completed() < 1) {
-      logs[id].error(id, formatError(task.error));
+      logs[id].error(id, task.error.stack ? task.error.stack : task.error);
       logs[id].finish();
     }
   });
@@ -119,7 +112,6 @@ store.dispatch(run('example1'));
 store.dispatch(run('example2'));
 
 process.on('exit', () => {
-  // console.log(store.getState());
   console.log('## ==== Results ==== ##');
   // const state = options.selector(store.getState());
   // console.log(state);
