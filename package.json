@@ -22,6 +22,7 @@
     "adana-cli": "^0.1.1",
     "adana-dump": "^0.1.0",
     "adana-format-lcov": "^0.1.1",
+    "babel-cli": "^6.10.1",
     "babel-preset-metalab": "^0.2.1",
     "chai": "^3.5.0",
     "eslint": "^2.10.2",
