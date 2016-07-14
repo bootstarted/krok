@@ -31,6 +31,7 @@ export const seleniumInstall = {
       });
     });
   },
+  format: ({version}) => `version: ${version}`,
 };
 
 // https://www.npmjs.com/package/selenium-standalone
@@ -86,8 +87,12 @@ export const leadfoot = {
 export const session = {
   dependencies: ['leadfoot'],
   format: (session) => session.sessionId,
-  run: (server) => server.createSession({browserName: 'chrome'}, {}),
-  dispose: (session) => session.quit(),
+  run: (server) => {
+    return server.createSession({browserName: 'chrome'}, {});
+  },
+  dispose: (session) => {
+    return session.quit();
+  },
 };
 
 /*

@@ -1,8 +1,8 @@
 import {expect} from 'chai';
-import chalk from 'chalk';
 import {runTask, reducer as taskReducer, createTaskRegistry} from '../../src';
 import thunk from 'redux-thunk';
 import {createStore, combineReducers, applyMiddleware} from 'redux';
+import log from 'npmlog';
 
 import {
   seleniumInstall,
@@ -80,45 +80,48 @@ const reducer = combineReducers({
 
 const store = createStore(reducer, applyMiddleware(thunk));
 
-// store.dispatch(run('example1'));
+const formatError = (error) => {
+  if (error.stack) {
+    return `${error}\n${error.stack}`;
+  }
+  return `${error}`;
+};
+
+const logs = {};
+log.heading = 'bayside';
+store.subscribe(() => {
+  const state = store.getState();
+  const {results} = options.selector(state);
+  Object.keys(results).forEach((id) => {
+    const [prefix] = id.split('@', 2);
+    const task = results[id];
+    if (!logs[id]) {
+      logs[id] = log.newItem(id, 1, 1);
+    }
+    if (task.status === 'COMPLETE' && logs[id].completed() < 1) {
+      const {format = (i) => i} = index[prefix];
+      if (task.result) {
+        logs[id].info(id, format(task.result));
+      }
+      logs[id].finish();
+    } else if (task.status === 'ERROR' && logs[id].completed() < 1) {
+      logs[id].error(id, formatError(task.error));
+      logs[id].finish();
+    }
+  });
+});
+
+log.enableColor();
+log.enableUnicode();
+log.enableProgress();
+
 store.dispatch(run('example1'));
 store.dispatch(run('example2'));
 
-const icon = (status) => {
-  switch (status) {
-  case 'COMPLETE':
-    return chalk.green('✔');
-  case 'ERROR':
-  default:
-    return chalk.red('✖');
-  }
-};
-
-const timing = (duration) => {
-  return chalk.grey(`${duration} ms`);
-};
-
-const formatResult = (result) => {
-  return typeof result !== 'undefined' ? chalk.blue(result) : '';
-};
-
-const formatError = (error) => {
-  if (error.stack) {
-    return `${chalk.red(error)} - ${error.stack}`;
-  }
-  return chalk.red(error);
-};
-
 process.on('exit', () => {
-  console.log(store.getState());
+  // console.log(store.getState());
   console.log('## ==== Results ==== ##');
-  const {results} = options.selector(store.getState());
-  Object.keys(results).forEach((key) => {
-    const {status, start, end, result, error} = results[key];
-    const [id] = key.split('@', 2);
-    const {format = (i) => i} = index[id];
-    const output = status === 'COMPLETE' ?
-      formatResult(format(result)) : formatError(error);
-    console.log(icon(status), timing(end - start), key, output);
-  });
+  // const state = options.selector(store.getState());
+  // console.log(state);
+  //
 });
