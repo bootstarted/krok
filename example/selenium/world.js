@@ -10,7 +10,7 @@ export const seleniumInstall = {
       const options = {
         // check for more recent versions of selenium here:
         // https://selenium-release.storage.googleapis.com/index.html
-        version: '2.53.0',
+        version: '2.53.1',
         baseURL: 'https://selenium-release.storage.googleapis.com',
         drivers: {
           chrome: {
@@ -26,7 +26,7 @@ export const seleniumInstall = {
         if (err) {
           reject(err);
         } else {
-          resolve({version: '2.53.0'});
+          resolve({version: '2.53.1'});
         }
       });
     });
