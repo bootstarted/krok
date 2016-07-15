@@ -91,24 +91,24 @@ export default handleActions({
       },
     };
   },
-  [TASK_REGISTER]: (state, {payload: {id, result}}) => {
+  [TASK_REGISTER]: (state, {payload: {id, task, dependencies, result}}) => {
     return {
       ...state,
-      promises: {
-        ...state.promises,
-        [id]: result,
+      tasks: {
+        ...state.tasks,
+        [id]: {task, dependencies, result},
       },
     };
   },
   [TASK_UNREGISTER]: (state, {payload: id}) => {
-    const promises = {...state.promises};
     const refs = {...state.refs};
-    delete promises[id];
+    const tasks = {...state.tasks};
     delete refs[id];
+    delete tasks[id];
     return {
       ...state,
       refs,
-      promises,
+      tasks,
     };
   },
   [TASK_REF]: (state, {payload: id}) => {
@@ -130,7 +130,7 @@ export default handleActions({
     };
   },
 }, {
-  promises: {},
+  tasks: {},
   refs: {},
   results: {},
   queue: [],

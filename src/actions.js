@@ -54,18 +54,41 @@ const runItem = (
   options,
   {id, dependencies, resolve, reject}
 ) => (dispatch, getState) => {
-  const {task: getTask, run} = options;
-  const task = thunkable(getTask(id), dispatch, getState);
+  let timedOut = false;
+  let complete = false;
+  const {run, selector, dispose, timeout} = options;
+  const {task} = selector(getState()).tasks[id];
   const _reject = (error) => {
     dispatch(failTask({id, task, error, timestamp: Date.now()}));
     reject(error);
   };
   const _resolve = (result) => {
-    dispatch(completeTask({id, task, result, timestamp: Date.now()}));
-    resolve(result);
+    complete = true;
+    // If we manage to resolve after we've already timed out it means the
+    // promise will have been rejected and resource cleanup will NOT be
+    // triggered by default; since the result will never be used, just cleanup
+    // the resource immediately.
+    if (timedOut) {
+      thunkable(dispose(task, result), dispatch, getState);
+    } else {
+      dispatch(completeTask({id, task, result, timestamp: Date.now()}));
+      resolve(result);
+    }
   };
   let result;
+  const wait = thunkable(timeout(task), dispatch, getState);
   dispatch(startTask({id, task, timestamp: Date.now()}));
+  if (timeout > 0) {
+    /* global setTimeout */
+    setTimeout(() => {
+      if (complete) {
+        return;
+      }
+      complete = timedOut = true;
+      const error = new Error('Timeout exceeded.');
+      _reject(error);
+    }, wait);
+  }
   try {
     result = thunkable(run(task, dependencies), dispatch, getState);
   } catch (err) {
@@ -79,17 +102,15 @@ const runItem = (
   }
 };
 
-const cleanup = (options, tasks) => (dispatch, getState) => {
+const cleanup = (options, todo) => (dispatch, getState) => {
   const {
-    task: getTask,
-    dependencies: getDependencies,
     dispose,
     selector,
   } = options;
-  const {refs, promises} = selector(getState());
+  const {refs, tasks} = selector(getState());
 
   // Find things which need disposing.
-  const all = (tasks || Object.keys(refs)).filter((id) => !refs[id]);
+  const all = (todo || Object.keys(refs)).filter((id) => !refs[id]);
 
   // If there's nothing to do, then bail early.
   if (all.length === 0) {
@@ -98,18 +119,18 @@ const cleanup = (options, tasks) => (dispatch, getState) => {
 
   // Go through every task whose result needs disposing.
   const result = Promise.all(all.map((id) => {
-    const task = getTask(id);
+    const {task, dependencies, result} = tasks[id];
     const done = () => {
       // Go through all our dependencies and remove a ref for each one.
       // The ref here is originally created in `runTask`.
-      getDependencies(task).forEach((dep) => {
+      dependencies.forEach((dep) => {
         dispatch(unrefTask(dep));
       });
       // Destroy the task.
       dispatch(unregisterTask(id));
     };
     // Get the result from the task.
-    return promises[id].then((result) => {
+    return result.then((result) => {
       // Dispose it.
       return thunkable(dispose(task, result), dispatch, getState);
     }).then(
@@ -172,17 +193,16 @@ export const runTask = (options, id) => (dispatch, getState) => {
     dependencies: getDependencies,
     selector,
   } = options;
-  const {promises} = selector(getState());
-  if (promises[id]) {
-    return promises[id];
+  const {tasks} = selector(getState());
+  if (tasks[id]) {
+    return tasks[id].result;
   }
-  const task = thunkable(getTask(id, getState), dispatch, getState);
-  const dependencies = thunkable(getDependencies(task), dispatch, getState)
-    .map((id) => {
-      dispatch(refTask(id));
-      return dispatch(runTask(options, id));
-    });
-  const result = Promise.all(dependencies).then((dependencies) => {
+  const task = thunkable(getTask(id), dispatch, getState);
+  const dependencies = thunkable(getDependencies(task), dispatch, getState);
+  const result = Promise.all(dependencies.map((id) => {
+    dispatch(refTask(id));
+    return dispatch(runTask(options, id));
+  })).then((dependencies) => {
     return new Promise((_resolve, _reject) => {
       const resolve = (result) => {
         dispatch(cleanup(options, [id]));
@@ -203,6 +223,6 @@ export const runTask = (options, id) => (dispatch, getState) => {
     dispatch(cleanup(options, [id]));
     throw error;
   });
-  dispatch(registerTask({id, result}));
+  dispatch(registerTask({id, task, dependencies, result}));
   return result;
 };

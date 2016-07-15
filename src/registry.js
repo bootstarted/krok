@@ -5,6 +5,7 @@ export const createTaskRegistry = ({
   dependencies,
   run,
   schedule = (queue) => queue,
+  timeout = () => 0,
 }) => {
   // Sanity check.
   if (typeof run !== 'function') {
@@ -19,5 +20,6 @@ export const createTaskRegistry = ({
     schedule,
     dispose,
     run,
+    timeout,
   };
 };
