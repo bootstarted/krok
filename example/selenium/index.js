@@ -2,15 +2,15 @@ import {expect} from 'chai';
 import {runTask, reducer as taskReducer, createTaskRegistry} from '../../src';
 import thunk from 'redux-thunk';
 import {createStore, combineReducers, applyMiddleware} from 'redux';
-import log from 'npmlog';
+import log from './log';
 
-import {
-  seleniumInstall,
-  selenium,
-  leadfoot,
-  session,
-  server,
-} from './world';
+// Selenium providers.
+import * as browserStack from './cloud/browserstack';
+import * as sauceLabs from './cloud/saucelabs';
+import * as local from './cloud/local';
+
+// Basic world.
+import * as world from './world';
 
 const example1 = {
   dependencies: ({id}) => [`session@${id}`],
@@ -35,11 +35,10 @@ const example2 = {
 };
 
 const index = {
-  seleniumInstall,
-  selenium,
-  server,
-  leadfoot,
-  session,
+  ...browserStack,
+  ...sauceLabs,
+  ...local,
+  ...world,
   example1,
   example2,
 };
@@ -69,44 +68,19 @@ const options = createTaskRegistry({
     }
     return [];
   },
-  selector: (state) => state.tasks,
+  selector: (state) => state.bayside,
+  timeout: () => 6000,
 });
 
 const run = (id) => runTask(options, id);
 
 const reducer = combineReducers({
-  tasks: taskReducer,
+  bayside: taskReducer,
 });
 
 const store = createStore(reducer, applyMiddleware(thunk));
 
-const logs = {};
-log.heading = 'bayside';
-store.subscribe(() => {
-  const state = store.getState();
-  const {results} = options.selector(state);
-  Object.keys(results).forEach((id) => {
-    const [prefix] = id.split('@', 2);
-    const task = results[id];
-    if (!logs[id]) {
-      logs[id] = log.newItem(id, 1, 1);
-    }
-    if (task.status === 'COMPLETE' && logs[id].completed() < 1) {
-      const {format = (i) => i} = index[prefix];
-      if (task.result) {
-        logs[id].info(id, format(task.result));
-      }
-      logs[id].finish();
-    } else if (task.status === 'ERROR' && logs[id].completed() < 1) {
-      logs[id].error(id, task.error.stack ? task.error.stack : task.error);
-      logs[id].finish();
-    }
-  });
-});
-
-log.enableColor();
-log.enableUnicode();
-log.enableProgress();
+log(options, store);
 
 store.dispatch(run('example1'));
 store.dispatch(run('example2'));
