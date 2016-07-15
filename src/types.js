@@ -1,4 +1,4 @@
-const prefix = 'my-module';
+const prefix = 'bayside';
 export const TASK_START = `${prefix}/TASK_START`;
 export const TASK_COMPLETE = `${prefix}/TASK_COMPLETE`;
 export const TASK_FAIL = `${prefix}/TASK_FAIL`;
