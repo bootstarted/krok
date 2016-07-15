@@ -19,6 +19,7 @@ Complete task and resource management powered by redux.
 | State management | [redux] | Internal |
 | Concurrency | Controlled | Unlimited |
 | Deadlocks | Detected | Undetected |
+| Timeouts | Yes | No |
 
 While there are [plenty](http://jakejs.com/) [of](http://gulpjs.com/) [task-runners](http://www.slant.co/topics/1276) most have an API designed around a very specific paradigm (streams, trees, etc.) and can't handle dependencies with resource-based results (that is to say results which require cleanup after they're used). `bayside` exists to make it easy to inspect and control how large collections of interconnected tasks are run. It has no CLI, and it has no opinion about how your tasks should be run or stored.
 
