@@ -8,6 +8,7 @@ import {
   TASK_UNREGISTER,
   TASK_REF,
   TASK_UNREF,
+  TASK_PROGRESS,
 } from './types';
 import {handleActions} from 'redux-actions';
 
@@ -38,6 +39,7 @@ export default handleActions({
       results: {
         ...state.results,
         [entry.id]: {
+          ...state.results[entry.id],
           status: 'ENQUEUED',
           queue: entry,
           queued: timestamp,
@@ -53,13 +55,14 @@ export default handleActions({
         ...state.results,
         [id]: {
           ...state.results[id],
+          progress: 0,
           status: 'PENDING',
           start: timestamp,
         },
       },
     };
   },
-  [TASK_COMPLETE]: (state, {payload: {id, result, bucket, timestamp}}) => {
+  [TASK_COMPLETE]: (state, {payload: {id, result, timestamp}}) => {
     return {
       ...state,
       todo: state.todo.filter((target) => target !== id),
@@ -69,13 +72,14 @@ export default handleActions({
           ...state.results[id],
           status: 'COMPLETE',
           result,
+          error: null,
+          progress: 1,
           end: timestamp,
-          bucket,
         },
       },
     };
   },
-  [TASK_FAIL]: (state, {payload: {id, error, bucket, timestamp}}) => {
+  [TASK_FAIL]: (state, {payload: {id, error, retry, timestamp}}) => {
     return {
       ...state,
       todo: state.todo.filter((target) => target !== id),
@@ -85,8 +89,22 @@ export default handleActions({
           ...state.results[id],
           status: 'ERROR',
           error,
+          result: null,
+          retry,
+          failures: state.results[id].failures + 1,
           end: timestamp,
-          bucket,
+        },
+      },
+    };
+  },
+  [TASK_PROGRESS]: (state, {payload: {id, progress}}) => {
+    return {
+      ...state,
+      results: {
+        ...state.results,
+        [id]: {
+          ...state.results[id],
+          progress,
         },
       },
     };
@@ -97,6 +115,14 @@ export default handleActions({
       tasks: {
         ...state.tasks,
         [id]: {task, dependencies, result},
+      },
+      results: {
+        ...state.results,
+        [id]: {
+          ...state.results[id],
+          status: 'REGISTERED',
+          failures: 0,
+        },
       },
     };
   },

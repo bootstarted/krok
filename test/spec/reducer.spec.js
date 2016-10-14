@@ -2,7 +2,7 @@ import {expect} from 'chai';
 import reducer from '../../src/reducer';
 import {createAction} from 'redux-actions';
 
-describe('bayside', () => {
+describe('krok', () => {
   describe('.reducer', () => {
     it('should accept unknown actions', () => {
       const state = {};

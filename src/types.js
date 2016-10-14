@@ -1,4 +1,4 @@
-const prefix = 'bayside';
+const prefix = 'krok';
 export const TASK_START = `${prefix}/TASK_START`;
 export const TASK_COMPLETE = `${prefix}/TASK_COMPLETE`;
 export const TASK_FAIL = `${prefix}/TASK_FAIL`;
@@ -8,4 +8,4 @@ export const TASK_REGISTER = `${prefix}/TASK_REGISTER`;
 export const TASK_UNREGISTER = `${prefix}/TASK_UNREGISTER`;
 export const TASK_REF = `${prefix}/TASK_REF`;
 export const TASK_UNREF = `${prefix}/TASK_UNREF`;
-export const TASK_CONCURRENCY = `${prefix}/TASK_CONCURRENCY`;
+export const TASK_PROGRESS = `${prefix}/TASK_PROGRESS`;

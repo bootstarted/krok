@@ -1,5 +1,11 @@
-import {expect} from 'chai';
-import {runTask, reducer as taskReducer, createTaskRegistry} from '../../src';
+
+import {
+  run,
+  progress,
+  fail,
+  reducer as taskReducer,
+  createTaskRegistry,
+} from '../../src';
 import thunk from 'redux-thunk';
 import {createStore, combineReducers, applyMiddleware} from 'redux';
 import log from './log';
@@ -12,45 +18,27 @@ import * as local from './cloud/local';
 // Basic world.
 import * as world from './world';
 
-const example1 = {
-  dependencies: ({id}) => [`session@${id}`],
-  run: (task, session) => {
-    return session.get('http:/www.apple.com').then(() => {
-      return session.getPageTitle().then((title) => {
-        expect(title).to.contain('Apple');
-      });
-    });
-  },
-};
-
-const example2 = {
-  dependencies: ({id}) => [`session@${id}`],
-  run: (task, session) => {
-    return session.get('http://www.google.com').then(() => {
-      return session.getPageTitle().then((title) => {
-        expect(title).to.contain('Google');
-      });
-    });
-  },
-};
+// Tests
+import * as tests from './test/standalone.test';
 
 const index = {
   ...browserStack,
   ...sauceLabs,
   ...local,
   ...world,
-  example1,
-  example2,
+  ...tests,
 };
 
 const options = createTaskRegistry({
-  task: (id) => {
+  task: (id) => (dispatch) => {
     const [name, context] = id.split('@', 2);
     return {
       ...index[name],
       id,
       name,
       context,
+      progress: (amount) => dispatch(progress(id, amount)),
+      fail: (error) => dispatch(fail(id, error)),
     };
   },
   run: (task, dependencies) => {
@@ -68,22 +56,31 @@ const options = createTaskRegistry({
     }
     return [];
   },
-  selector: (state) => state.bayside,
-  timeout: () => 6000,
+  selector: (state) => state.krok,
+  timeout: (task) => {
+    const {timeout} = task;
+    if (typeof timeout === 'function') {
+      return timeout(task);
+    }
+    return timeout || 6000;
+  },
+  retry: (task, {failures}) => {
+    return failures < 2;
+  },
 });
 
-const run = (id) => runTask(options, id);
+const go = (id) => run(options, id);
 
 const reducer = combineReducers({
-  bayside: taskReducer,
+  krok: taskReducer,
 });
 
 const store = createStore(reducer, applyMiddleware(thunk));
 
 log(options, store);
 
-store.dispatch(run('example1'));
-store.dispatch(run('example2'));
+store.dispatch(go('example1'));
+store.dispatch(go('example2'));
 
 process.on('exit', () => {
   console.log('## ==== Results ==== ##');

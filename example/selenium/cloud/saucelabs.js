@@ -1,10 +1,14 @@
 import sauceConnectLauncher from 'sauce-connect-launcher';
+import uuid from 'uuid';
 
 export const saucelabs = {
   run: () => {
     return new Promise((resolve, reject) => {
       // TODO: tunnelIdentifier
-      const options = {port: 4555};
+      const options = {
+        port: 4555,
+        tunnelIdentifier: uuid.v1(),
+      };
       sauceConnectLauncher(
         options,
         (err, sauce) => {
@@ -13,8 +17,11 @@ export const saucelabs = {
           } else {
             const u = process.env.SAUCE_USERNAME;
             const p = process.env.SAUCE_ACCESS_KEY;
+            sauce.port = options.port;
             sauce.url = `http://${u}:${p}@localhost:${options.port}/wd/hub`;
-            sauce.capabilities = {};
+            sauce.capabilities = {
+              tunnelIdentifier: options.tunnelIdentifier,
+            };
             resolve(sauce);
           }
         }
@@ -26,5 +33,5 @@ export const saucelabs = {
       sauce.close((err) => err ? reject(err) : resolve());
     });
   },
-  format: (sauce) => `${sauce.url}`,
+  format: (sauce) => `port: ${sauce.port}`,
 };

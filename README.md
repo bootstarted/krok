@@ -1,16 +1,16 @@
-# bayside
+# krok
 
 Complete task and resource management powered by redux.
 
-![build status](http://img.shields.io/travis/metalabdesign/bayside/master.svg?style=flat)
-![coverage](http://img.shields.io/coveralls/metalabdesign/bayside/master.svg?style=flat)
-![license](http://img.shields.io/npm/l/bayside.svg?style=flat)
-![version](http://img.shields.io/npm/v/bayside.svg?style=flat)
-![downloads](http://img.shields.io/npm/dm/bayside.svg?style=flat)
+![build status](http://img.shields.io/travis/metalabdesign/krok/master.svg?style=flat)
+![coverage](http://img.shields.io/coveralls/metalabdesign/krok/master.svg?style=flat)
+![license](http://img.shields.io/npm/l/krok.svg?style=flat)
+![version](http://img.shields.io/npm/v/krok.svg?style=flat)
+![downloads](http://img.shields.io/npm/dm/krok.svg?style=flat)
 
 ## Overview
 
-| Feature | bayside | [undertaker] |
+| Feature | krok | [undertaker] |
 | ------- | ------- | ------------ |
 | Async primitive   | Promise | [async-done]   |
 | Resource management | Yes | No |
@@ -20,12 +20,13 @@ Complete task and resource management powered by redux.
 | Concurrency | Controlled | Unlimited |
 | Deadlocks | Detected | Undetected |
 | Timeouts | Yes | No |
+| Retry | Yes | No |
 
-While there are [plenty](http://jakejs.com/) [of](http://gulpjs.com/) [task-runners](http://www.slant.co/topics/1276) most have an API designed around a very specific paradigm (streams, trees, etc.) and can't handle dependencies with resource-based results (that is to say results which require cleanup after they're used). `bayside` exists to make it easy to inspect and control how large collections of interconnected tasks are run. It has no CLI, and it has no opinion about how your tasks should be run or stored.
+While there are [plenty](http://jakejs.com/) [of](http://gulpjs.com/) [task-runners](http://www.slant.co/topics/1276) most have an API designed around a very specific paradigm (streams, trees, etc.) and can't handle dependencies with resource-based results (that is to say results which require cleanup after they're used). `krok` exists to make it easy to inspect and control how large collections of interconnected tasks are run. It has no CLI, and it has no opinion about how your tasks should be run or stored.
 
 Some quick nomenclature to keep things consistent:
 
-**Task**: Representation of work to be done. Every task in `bayside` has a unique string identifier. How that task is run is up to you.
+**Task**: Representation of work to be done. Every task in `krok` has a unique string identifier. How that task is run is up to you.
 
 **Registry**: A collection of functions defining the behaviour for a domain of tasks. Includes things like how to run a task and what the dependencies of a given task are.
 
@@ -35,10 +36,10 @@ Some quick nomenclature to keep things consistent:
 
 ## Usage
 
-Install `bayside` and its dependencies:
+Install `krok` and its dependencies:
 
 ```sh
-npm install --save bayside redux redux-thunk
+npm install --save krok redux redux-thunk
 ```
 
 ### Simple
@@ -46,7 +47,7 @@ npm install --save bayside redux redux-thunk
 If you have a fixed set of tasks to run you can simply encode all of them directly.
 
 ```javascript
-import {runTask, reducer, createTaskRegistry} from 'bayside';
+import {runTask, reducer, createTaskRegistry} from 'krok';
 import thunk from 'redux-thunk';
 import {createStore, applyMiddleware} from 'redux';
 
@@ -100,7 +101,7 @@ result.then((b) => console.log('Task result:', b));
 Sometimes you will want to do things with state.
 
 ```javascript
-import {runTask, reducer as taskReducer, createTaskRegistry} from 'bayside';
+import {runTask, reducer as taskReducer, createTaskRegistry} from 'krok';
 import thunk from 'redux-thunk';
 import {createStore, combineReducers, applyMiddleware} from 'redux';
 
@@ -115,7 +116,7 @@ const reducer = combineReducers({
   app: appReducer,
 });
 
-// Create a selector to pick out the bayside state.
+// Create a selector to pick out the krok state.
 const selector = (state) => state.tasks;
 
 const store = createStore(reducer, applyMiddleware(thunk));
@@ -153,7 +154,7 @@ result.then((b) => console.log('Task result:', b));
 
 Sometimes the result of running a task is just a simple value, like a plain JavaScript object. However, other times it can be something that has it's own state - database connections, web servers or file handles. After this kind of task result has been used, it needs to be cleaned up. You can provide a `dispose` handler in your registry for this purpose.
 
-Internally, `bayside` handles all the necessary reference counting ensuring that both: as long as the result of a task is needed, its resource will be kept alive; and when the result is no longer needed, its resource will be disposed.
+Internally, `krok` handles all the necessary reference counting ensuring that both: as long as the result of a task is needed, its resource will be kept alive; and when the result is no longer needed, its resource will be disposed.
 
 ```javascript
 const registry = createTaskRegistry({
@@ -188,9 +189,9 @@ const registry = createTaskRegistry({
 });
 ```
 
-Note that when _you_ run a task, `bayside` does not know how long you expect to use the resource for and _DOES NOT_ automatically handle the reference count for that task. If you're thinking of using a resource, consider first if it's possible to make a task that consumes that resource into a concrete result so you do not have to manually manage references yourself.
+Note that when _you_ run a task, `krok` does not know how long you expect to use the resource for and _DOES NOT_ automatically handle the reference count for that task. If you're thinking of using a resource, consider first if it's possible to make a task that consumes that resource into a concrete result so you do not have to manually manage references yourself.
 
-However, if you do need access to a long-running resource, `bayside` provides you with the mechanism for updating the reference count yourself.
+However, if you do need access to a long-running resource, `krok` provides you with the mechanism for updating the reference count yourself.
 
 ```javascript
 // Mark that you want to keep the handle for `a` available.
@@ -282,9 +283,9 @@ const registry = createTaskRegistry({
 
 ### Deadlocks
 
-If you're not careful when customizing the scheduler or you create circular dependencies, you can create deadlocks. Generally, `bayside` is capable of detecting them and will automatically fail any task caught inside a deadlock.
+If you're not careful when customizing the scheduler or you create circular dependencies, you can create deadlocks. Generally, `krok` is capable of detecting them and will automatically fail any task caught inside a deadlock.
 
-This is a trivial dependency deadlock that `bayside` will detect:
+This is a trivial dependency deadlock that `krok` will detect:
 
 ```javascript
 const registry = createTaskRegistry({
@@ -307,7 +308,7 @@ const registry = createTaskRegistry({
 });
 ```
 
-This is a trivial scheduler deadlock that `bayside` will detect:
+This is a trivial scheduler deadlock that `krok` will detect:
 
 ```javascript
 const registry = createTaskRegistry({
@@ -317,7 +318,7 @@ const registry = createTaskRegistry({
 
 ### Debugging
 
-Because `bayside` uses [redux] under the hood, you can use all the tooling available to the [redux] ecosystem to inspect the state of the system as it runs. For example, you can use [redux-logger] or [redux-cli-logger] to track everything that happens.
+Because `krok` uses [redux] under the hood, you can use all the tooling available to the [redux] ecosystem to inspect the state of the system as it runs. For example, you can use [redux-logger] or [redux-cli-logger] to track everything that happens.
 
 ```javascript
 import createLogger from 'redux-logger';
@@ -328,7 +329,7 @@ const store = createStore(reducer, applyMiddleware(thunk, logger));
 
 ### Reporting
 
-Reporting is a little bit trickier with `bayside`. The only official mechanism to detect changes is by using [redux's store subscription].
+Reporting is a little bit trickier with `krok`. The only official mechanism to detect changes is by using [redux's store subscription].
 
 ```javascript
 let state = null;
@@ -358,15 +359,15 @@ The options (and defaults) to `createTaskRegistry` are described below:
   dispose = (task, value) => Promise.resolve(),
 
   /**
-   * Fetch the part of the global redux state atom that has the `bayside` state.
-   * You can use this to combine `bayside` with other redux reducers.
+   * Fetch the part of the global redux state atom that has the `krok` state.
+   * You can use this to combine `krok` with other redux reducers.
    * @param {Object} state Global redux state atom.
-   * @returns {Object} The `bayside` state atom.
+   * @returns {Object} The `krok` state atom.
    */
   selector = (state) => state,
 
   /**
-   * Fetch a task. Internally `bayside` only uses `id` to track tasks, but you
+   * Fetch a task. Internally `krok` only uses `id` to track tasks, but you
    * may wish to attach additional data to a particular task. Whatever you
    * return here will be passed as the `task` argument to the other registry
    * functions.

@@ -1,7 +1,7 @@
 import {expect} from 'chai';
 import {createTaskRegistry} from '../../src/registry';
 
-describe('bayside', () => {
+describe('krok', () => {
   describe('.createTaskRegistry', () => {
     it('should fail with an invalid `run` option', () => {
       expect(() => createTaskRegistry({

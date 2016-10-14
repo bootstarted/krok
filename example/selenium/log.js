@@ -2,7 +2,7 @@ import log from 'npmlog';
 
 export default (options, store) => {
   const logs = {};
-  log.heading = 'bayside';
+  log.heading = 'krok';
   store.subscribe(() => {
     const state = store.getState();
     const {results, tasks} = options.selector(state);

@@ -1,14 +1,16 @@
 {
-  "name": "bayside-selenium-example",
+  "name": "krok-selenium-example",
   "dependencies": {
-    "bayside": "../../",
+    "krok": "../../",
     "browserstack-local": "^1.0.0",
-    "leadfoot": "^1.6.8",
+    "gherkin": "^4.0.0",
+    "leadfoot": "^1.6.12",
     "npmlog": "^3.1.2",
     "redux": "^3.5.2",
     "redux-thunk": "^2.1.0",
     "sauce-connect-launcher": "^0.15.1",
-    "selenium-standalone": "^5.5.0"
+    "selenium-standalone": "^5.7.2",
+    "uuid": "^2.0.2"
   },
   "devDependencies": {
     "babel-cli": "^6.10.1"

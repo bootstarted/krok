@@ -1,10 +1,10 @@
 {
-  "name": "bayside",
+  "name": "krok",
   "version": "0.1.0",
   "description": "Task management powered by redux.",
   "author": "Izaak Schroeder <izaak.schroeder@gmail.com>",
   "license": "CC0-1.0",
-  "repository": "metalabdesign/bayside",
+  "repository": "metalabdesign/krok",
   "keywords": [
     "redux",
     "tasks"

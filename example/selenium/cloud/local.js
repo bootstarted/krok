@@ -29,11 +29,11 @@ export const seleniumInstall = {
       const options = {
         // check for more recent versions of selenium here:
         // https://selenium-release.storage.googleapis.com/index.html
-        version: '2.53.1',
+        version: '3.0.0',
         baseURL: 'https://selenium-release.storage.googleapis.com',
         drivers: {
           chrome: {
-            version: '2.21',
+            version: '2.24',
             arch: process.arch,
             baseURL: 'https://chromedriver.storage.googleapis.com',
           },
@@ -48,7 +48,7 @@ export const seleniumInstall = {
         if (err) {
           reject(err);
         } else {
-          resolve({version: '2.53.1'});
+          resolve({version: options.version, options});
         }
       });
     });
@@ -59,16 +59,11 @@ export const seleniumInstall = {
 // https://www.npmjs.com/package/selenium-standalone
 export const selenium = {
   dependencies: ['seleniumInstall'],
-  run: () => {
+  run: (task, seleniumInstall) => {
     const port = 4444;
     const result = new Promise((resolve, reject) => {
       const options = {
-        drivers: {
-          chrome: {
-            version: '2.21',
-            arch: process.arch,
-          },
-        },
+        ...seleniumInstall.options,
         seleniumArgs: ['-port', port],
       };
       Selenium.start(options, (err, process) => {
@@ -100,5 +95,5 @@ export const selenium = {
     });
   },
   format: (process) =>
-    `port: ${process.port}, pid: ${process.pid}`,
+    `url: ${process.url}, pid: ${process.pid}`,
 };
