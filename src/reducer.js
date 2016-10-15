@@ -9,6 +9,7 @@ import {
   TASK_REF,
   TASK_UNREF,
   TASK_PROGRESS,
+  TASK_DISPOSE,
 } from './types';
 import {handleActions} from 'redux-actions';
 
@@ -26,6 +27,7 @@ export default handleActions({
     return {
       ...state,
       todo,
+      active: [...state.active, ...todo],
       queue: queue.filter((id) => !used[id]),
     };
   },
@@ -51,6 +53,10 @@ export default handleActions({
     return {
       ...state,
       todo: state.todo.filter((target) => target !== id),
+      running: [
+        ...state.running,
+        id,
+      ],
       results: {
         ...state.results,
         [id]: {
@@ -66,10 +72,12 @@ export default handleActions({
     return {
       ...state,
       todo: state.todo.filter((target) => target !== id),
+      running: state.running.filter((target) => target !== id),
       results: {
         ...state.results,
         [id]: {
           ...state.results[id],
+          ready: true,
           status: 'COMPLETE',
           result,
           error: null,
@@ -83,10 +91,13 @@ export default handleActions({
     return {
       ...state,
       todo: state.todo.filter((target) => target !== id),
+      running: state.running.filter((target) => target !== id),
+      active: state.active.filter((target) => target !== id),
       results: {
         ...state.results,
         [id]: {
           ...state.results[id],
+          ready: false,
           status: 'ERROR',
           error,
           result: null,
@@ -105,6 +116,19 @@ export default handleActions({
         [id]: {
           ...state.results[id],
           progress,
+        },
+      },
+    };
+  },
+  [TASK_DISPOSE]: (state, {payload: {id}}) => {
+    return {
+      ...state,
+      active: state.active.filter((target) => target !== id),
+      results: {
+        ...state.results,
+        [id]: {
+          ...state.results[id],
+          ready: false,
         },
       },
     };
@@ -161,4 +185,6 @@ export default handleActions({
   results: {},
   queue: [],
   todo: [],
+  running: [],
+  active: [],
 });

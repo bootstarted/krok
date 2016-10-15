@@ -5,6 +5,7 @@ import {
   TASK_START,
   TASK_COMPLETE,
   TASK_FAIL,
+  TASK_DISPOSE,
   TASK_REGISTER,
   TASK_UNREGISTER,
   TASK_REF,
@@ -22,6 +23,12 @@ const completeTask = createAction(TASK_COMPLETE);
 // manually to fail a task _after_ it has initially succeeded, signifying
 // the resource that belongs to that task is no longer valid.
 const failTask = createAction(TASK_FAIL);
+
+// Task has been disposed. Any resource that was associated with it is no
+// longer valid and the task will have to be re-run if it is needed again.
+// This is only necessary for succeeded tasks - those which are failed are
+// never ready to begin with.
+const disposeTask = createAction(TASK_DISPOSE);
 
 // Task is ready to be processed. All dependencies have been completed or
 // failed.
@@ -82,6 +89,7 @@ const runItem = (
     // triggered by default; since the result will never be used, just cleanup
     // the resource immediately.
     if (timedOut) {
+      dispatch(disposeTask({id}));
       thunkable(dispose(task, result), dispatch, getState);
     } else {
       dispatch(completeTask({id, task, result, timestamp: Date.now()}));
@@ -98,7 +106,7 @@ const runItem = (
   // It's a complex, annoying edge case but it does exist.
   const failures = [];
   const deps = dependencies.map((id) => {
-    if (results[id].status !== 'COMPLETE') {
+    if (!results[id].ready) {
       failures.push(results[id].error);
       return null;
     }
@@ -146,7 +154,7 @@ const cleanup = (options, todo) => (dispatch, getState) => {
 
   // If there's nothing to do, then bail early.
   if (all.length === 0) {
-    return Promise.resolve();
+    return dispatch(runQueue(options)); // eslint-disable-line
   }
 
   // Go through every task whose result needs disposing.
@@ -161,11 +169,15 @@ const cleanup = (options, todo) => (dispatch, getState) => {
       // Destroy the task.
       dispatch(unregisterTask(id));
     };
-    // Get the result from the task.
-    return result.then((result) => {
+
+    const work = (err) => (result) => {
       // Dispose it.
-      return thunkable(dispose(task, result), dispatch, getState);
-    }).then(
+      dispatch(disposeTask({id}));
+      return thunkable(dispose(task, result, err), dispatch, getState);
+    };
+
+    // Get the result from the task.
+    return result.then(work(false), work(true)).then(
       (result) => {
         done();
         return result;
@@ -185,28 +197,34 @@ const cleanup = (options, todo) => (dispatch, getState) => {
 
 const schedule = (options) => (dispatch, getState) => {
   const {selector, schedule} = options;
-  const {todo, queue, results} = selector(getState());
-  const tasks = thunkable(schedule(queue), dispatch, getState);
+  const {queue, active, results} = selector(getState());
+  if (queue.length > 0) {
+    const tasks = thunkable(schedule(queue), dispatch, getState);
 
-  // TODO: What should happen if the scheduler returns an invalid task?
-  // Ignore it or bail on error or nothing?
-  // if (tasks.some((id) => !results[id])) {};
+    // TODO: What should happen if the scheduler returns an invalid task?
+    // Ignore it or bail on error or nothing?
+    // if (tasks.some((id) => !results[id])) {};
 
-  // Detect deadlock conditions. If there are no tasks to be scheduled AND
-  // there are no tasks currently processing AND there is work left to be done
-  // then we've hit an impasse. The rationale is that if there are no tasks
-  // currently processing then the scheduler will not be invoked again and thus
-  // everything will simply stop. In this case the queue is simply fushed and
-  // all active items are rejected.
-  if (tasks.length === 0 && todo.length === 0 && queue.length > 0) {
-    dispatch(unqueueTasks(queue));
-    const error = new Error('Deadlock.');
-    queue.forEach((id) => {
-      results[id].queue.reject(error);
-      dispatch(failTask({id, error, timestamp: Date.now()}));
-    });
-  } else {
-    dispatch(unqueueTasks(tasks));
+    // Detect deadlock conditions. If there are no tasks to be scheduled AND
+    // there are no tasks currently processing AND there is work left to be done
+    // then we've hit an impasse. The rationale is that if there are no tasks
+    // currently processing then the scheduler will not be invoked again and
+    // thus everything will simply stop. In this case the queue is simply
+    // fushed and all active items are rejected.
+    if (
+      tasks.length === 0 &&
+      active.length === 0 &&
+      queue.length > 0
+    ) {
+      dispatch(unqueueTasks(queue));
+      const error = new Error('Deadlock.');
+      queue.forEach((id) => {
+        results[id].queue.reject(error);
+        dispatch(failTask({id, error, timestamp: Date.now()}));
+      });
+    } else {
+      dispatch(unqueueTasks(tasks));
+    }
   }
 };
 

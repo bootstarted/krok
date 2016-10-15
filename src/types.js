@@ -9,3 +9,4 @@ export const TASK_UNREGISTER = `${prefix}/TASK_UNREGISTER`;
 export const TASK_REF = `${prefix}/TASK_REF`;
 export const TASK_UNREF = `${prefix}/TASK_UNREF`;
 export const TASK_PROGRESS = `${prefix}/TASK_PROGRESS`;
+export const TASK_DISPOSE = `${prefix}/TASK_DISPOSE`;
